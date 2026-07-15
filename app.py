@@ -92,6 +92,7 @@ class SpaceagonTest(App):
             if BUTTON_TYPES["CANCEL"] in event.button:
                 eventbus.remove(ButtonDownEvent, self._handle_button_down, None)
                 eventbus.remove(ButtonUpEvent, self._handle_button_up, None)
+                self.state = "top"
                 self.minimise()
             
     def draw(self, ctx):
@@ -128,7 +129,7 @@ class SpaceagonTest(App):
             ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-30, 10).text("for IMU")
         else:
             if self.mag:
-                ctx.rgb(1, 0, 0).move_to(-80, -40).text(
+                ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-80, -40).text(
                     "mag x,y,z:\n{},\n{},\n{}".format(
                         self.mag[0], self.mag[1], self.mag[2]))
         
