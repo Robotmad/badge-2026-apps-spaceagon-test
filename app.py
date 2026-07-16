@@ -124,9 +124,9 @@ class SpaceagonTest(App):
                 display.hexagon(ctx, pointX, pointY, pointRadius)
             ctx.rgb(*self.states["LEFTPROX"]).arc(-120, 0, 15, 0, 2 * pi, False).fill()
             ctx.rgb(*self.states["RIGHTPROX"]).arc(120, 0, 15, 0, 2 * pi, False).fill()
-            ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-50, -30).text("Press  both")
-            ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-30, -10).text("C and D")
-            ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-30, 10).text("for IMU")
+            ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-50, -30).text("Press")
+            ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-50, -10).text("C and D")
+            ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-50, 15).text("for IMU")
         else:
             if self.mag:
                 ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-80, -40).text(
@@ -139,4 +139,5 @@ class SpaceagonTest(App):
         self.mag = imu.mag_read()
 
 __app_export__ = SpaceagonTest
+
 
