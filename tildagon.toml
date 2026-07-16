@@ -37,4 +37,4 @@ description = "App to allow testing of the inputs and compass on the Spaceagon."
 # increased, we interpret this as a new version being released.
 #
 # Version number must be an integer!
-version = "0.0.2"
+version = "0.0.3"
