@@ -4,11 +4,15 @@ from math import pi, sin, cos
 import display
 import imu
 from app_components.background import Background as bg
+from app_components.tokens import small_font_size
 from system.eventbus import eventbus
 from events.input import ButtonDownEvent, ButtonUpEvent, BUTTON_TYPES
 from events.joystick import JOYSTICK_BUTTON_TYPES
 from frontboards.common import FRONTBOARD_BUTTON_TYPES
 from frontboards.twentysix import TOUCH, PROX, TwentyTwentySix
+
+
+COMPASS_UPDATE_PERIOD_MS = 100
 
 
 class SpaceagonTest(App):
@@ -46,7 +50,41 @@ class SpaceagonTest(App):
         self.c_pressed = False
         self.d_pressed = False
         self.state = "top"
-            
+        self.mag = None
+        self._compass_period_before_app = None
+        self._compass_period_changed = False
+
+    def _start_compass(self):
+        self.state = "compass"
+        try:
+            compass = imu.COMPASS
+            get_period = imu.get_period
+            set_period = imu.set_period
+        except AttributeError:
+            return
+
+        self._compass_period_before_app = imu.get_period(imu.COMPASS)
+        if self._compass_period_before_app != COMPASS_UPDATE_PERIOD_MS:
+            self._compass_period_changed = True
+            imu.set_period(
+                imu.COMPASS, COMPASS_UPDATE_PERIOD_MS
+            )
+
+    def _exit(self, restore_compass):
+        if restore_compass and self._compass_period_changed:
+            imu.set_period(
+                imu.COMPASS, self._compass_period_before_app, force=True
+            )
+        self.state = "top"
+        self.mag = None
+        self.c_pressed = False
+        self.d_pressed = False
+        self._compass_period_before_app = None
+        self._compass_period_changed = False
+        eventbus.remove(ButtonDownEvent, self._handle_button_down, None)
+        eventbus.remove(ButtonUpEvent, self._handle_button_up, None)
+        self.minimise()
+
     def _handle_button_up(self, event:ButtonUpEvent):
         if self.state == "top":
             for key in self.buttons:
@@ -87,14 +125,19 @@ class SpaceagonTest(App):
             if self.c_pressed and self.d_pressed:
                 self.c_pressed = False
                 self.d_pressed = False
-                self.state = "mid"
-        else:
+                self._start_compass()
+        elif self.state == "compass":
             if BUTTON_TYPES["CANCEL"] in event.button:
-                eventbus.remove(ButtonDownEvent, self._handle_button_down, None)
-                eventbus.remove(ButtonUpEvent, self._handle_button_up, None)
-                self.state = "top"
-                self.minimise()
-            
+                if self._compass_period_changed:
+                    self.state = "exit"
+                else:
+                    self._exit(False)
+        elif self.state == "exit":
+            if BUTTON_TYPES["CONFIRM"] in event.button:
+                self._exit(False)
+            elif BUTTON_TYPES["CANCEL"] in event.button:
+                self._exit(True)
+
     def draw(self, ctx):
         bg.draw(ctx)
         if self.state == "top":
@@ -102,21 +145,21 @@ class SpaceagonTest(App):
             pointRadius = 8;      # Size of the smaller circles
             for i in range(12):
                 # Calculate angle in radians and add offset
-                angle = ((i / 12) * 2 * pi ) - ( 0.42 * pi )           
+                angle = ((i / 12) * 2 * pi ) - ( 0.42 * pi )
                 #Calculate (x, y) coordinates for the point
                 pointX = mainRadius * cos(angle)
                 pointY = mainRadius * sin(angle)
                 ctx.rgb(*self.states[f'TOUCH{i+1:02d}']).arc(pointX, pointY, pointRadius, 0, 2 * pi, False).fill()
-            ctx.rgb(*self.states["UP"]).rectangle(-5, 25, 10, 10).fill()    
-            ctx.rgb(*self.states["DOWN"]).rectangle(-5, 55, 10, 10).fill()    
-            ctx.rgb(*self.states["LEFT"]).rectangle(-20, 40, 10, 10).fill()    
-            ctx.rgb(*self.states["RIGHT"]).rectangle(10, 40, 10, 10).fill()    
+            ctx.rgb(*self.states["UP"]).rectangle(-5, 25, 10, 10).fill()
+            ctx.rgb(*self.states["DOWN"]).rectangle(-5, 55, 10, 10).fill()
+            ctx.rgb(*self.states["LEFT"]).rectangle(-20, 40, 10, 10).fill()
+            ctx.rgb(*self.states["RIGHT"]).rectangle(10, 40, 10, 10).fill()
             ctx.rgb(*self.states["SELECT"]).rectangle(-5, 40, 10, 10).fill()
-            
+
             mainRadius = 110
             for i in range(6):
                 # Calculate angle in radians and add offset
-                angle = ((i / 6) * 2 * pi ) - ( 0.5 * pi )           
+                angle = ((i / 6) * 2 * pi ) - ( 0.5 * pi )
                 #Calculate (x, y) coordinates for the point
                 pointX = mainRadius * cos(angle)
                 pointY = mainRadius * sin(angle)
@@ -127,17 +170,24 @@ class SpaceagonTest(App):
             ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-50, -30).text("Press")
             ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-50, -10).text("C and D")
             ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-50, 15).text("for IMU")
-        else:
+        elif self.state == "compass":
             if self.mag:
                 ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-80, -40).text(
                     "mag x,y,z:\n{},\n{},\n{}".format(
                         self.mag[0], self.mag[1], self.mag[2]))
-        
-               
+        else:
+            ctx.font_size = small_font_size
+            ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-95, -40).text(
+                "Compass polling\n\nConfirm: Keep {}ms\nCancel: Restore {}".format(
+                    COMPASS_UPDATE_PERIOD_MS,
+                    self._compass_period_before_app if self._compass_period_before_app is not None else "Off"
+                )
+            )
+
+
     def update(self, delta):
         bg.update(delta)
-        self.mag = imu.mag_read()
+        if self.state == "compass":
+            self.mag = imu.mag_read()
 
 __app_export__ = SpaceagonTest
-
-
