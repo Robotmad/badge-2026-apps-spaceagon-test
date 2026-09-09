@@ -4,7 +4,7 @@ from math import pi, sin, cos
 import display
 import imu
 from app_components.background import Background as bg
-from app_components.tokens import small_font_size
+from app_components.tokens import small_font_size, label_font_size
 from system.eventbus import eventbus
 from events.input import ButtonDownEvent, ButtonUpEvent, BUTTON_TYPES
 from events.joystick import JOYSTICK_BUTTON_TYPES
@@ -54,21 +54,25 @@ class SpaceagonTest(App):
         self._compass_period_before_app = None
         self._compass_period_changed = False
 
+
     def _start_compass(self):
         self.state = "compass"
         try:
             compass = imu.COMPASS
             get_period = imu.get_period
             set_period = imu.set_period
-        except AttributeError:
+        except AttributeError as e:
+            print(f"legacy imu interface: {e}")
             return
 
-        self._compass_period_before_app = imu.get_period(imu.COMPASS)
+        self._compass_period_before_app = get_period(compass)
         if self._compass_period_before_app != COMPASS_UPDATE_PERIOD_MS:
+            print(f"Changing compass update period from {self._compass_period_before_app} to {COMPASS_UPDATE_PERIOD_MS}")
             self._compass_period_changed = True
-            imu.set_period(
-                imu.COMPASS, COMPASS_UPDATE_PERIOD_MS
+            set_period(
+                compass, COMPASS_UPDATE_PERIOD_MS
             )
+
 
     def _exit(self, restore_compass):
         if restore_compass and self._compass_period_changed:
@@ -84,6 +88,7 @@ class SpaceagonTest(App):
         eventbus.remove(ButtonDownEvent, self._handle_button_down, None)
         eventbus.remove(ButtonUpEvent, self._handle_button_up, None)
         self.minimise()
+
 
     def _handle_button_up(self, event:ButtonUpEvent):
         if self.state == "top":
@@ -167,16 +172,23 @@ class SpaceagonTest(App):
                 display.hexagon(ctx, pointX, pointY, pointRadius)
             ctx.rgb(*self.states["LEFTPROX"]).arc(-120, 0, 15, 0, 2 * pi, False).fill()
             ctx.rgb(*self.states["RIGHTPROX"]).arc(120, 0, 15, 0, 2 * pi, False).fill()
-            ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-50, -30).text("Press")
-            ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-50, -10).text("C and D")
-            ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-50, 15).text("for IMU")
+            ctx.font_size = label_font_size
+            ctx.text_align = ctx.CENTER
+            ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(0, -30).text("Press")
+            ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(0, -10).text("C and D")
+            ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(0, 15).text("for IMU")
         elif self.state == "compass":
             if self.mag:
+                ctx.font_size = label_font_size
+                ctx.text_align = ctx.LEFT
                 ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-80, -40).text(
                     "mag x,y,z:\n{},\n{},\n{}".format(
                         self.mag[0], self.mag[1], self.mag[2]))
+            else:
+                ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-80, -40).text("no readings yet")
         else:
             ctx.font_size = small_font_size
+            ctx.text_align = ctx.LEFT
             ctx.rgb(*TwentyTwentySix.colors["pale_blue"]).move_to(-95, -40).text(
                 "Compass polling\n\nConfirm: Keep {}ms\nCancel: Restore {}".format(
                     COMPASS_UPDATE_PERIOD_MS,
